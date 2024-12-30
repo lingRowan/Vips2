@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+</head>
+<body>
+    <h1>Search Results for "{{ query }}"</h1>
+
+    {% if no_results %}
+        <p>No results found for "{{ query }}".</p>
+    {% else %}
+        <ul>
+            {% for result in results %}
+                <li>
+                    <a href="{{ result.url }}">{{ result.title }}</a>
+                    <p>{{ result.content|safe }}</p>  <!-- Render HTML content safely -->
+                </li>
+            {% endfor %}
+        </ul>
+
+        <div>
+            {% if page > 1 %}
+                <a href="{{ url_for('search', q=query, page=page-1) }}">Previous</a>
+            {% endif %}
+            {% if page < total_pages %}
+                <a href="{{ url_for('search', q=query, page=page+1) }}">Next</a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <a href="/">Back to Home</a>
+</body>
+</html>
