@@ -13,7 +13,7 @@ def get_or_create_index(index_dir=INDEX_DIR):
         os.mkdir(index_dir)
     if not os.listdir(index_dir):  # Check if the directory is empty
         # Define the schema for the index
-        schema = Schema(title=TEXT(stored=True), url=ID(stored=True), content=TEXT)
+        schema = Schema(title=TEXT(stored=True), url=ID(stored=True), content=TEXT(stored=True))
         # Create the index if it doesn't exist
         ix = create_in(index_dir, schema)
         
@@ -38,15 +38,16 @@ def search():
     results_per_page = 10
     results = []
     no_results = False  # Flag to indicate if no results are found
+    total_pages = 0
 
     if query:
         try:
-            ix = open_dir(INDEX_DIR)
+            ix = get_or_create_index()  # Ensure the index exists
             with ix.searcher() as searcher:
                 query_parser = QueryParser("content", ix.schema)
                 parsed_query = query_parser.parse(query)
 
-                search_results = searcher.search(parsed_query, limit=results_per_page * page)
+                search_results = searcher.search(parsed_query, limit=None)  # Fetch all matching results
 
                 # Get the total number of results
                 total_results = len(search_results)
@@ -54,26 +55,33 @@ def search():
                 # If there are no results, set the flag to True
                 if total_results == 0:
                     no_results = True
+                else:
+                    # Paginate results
+                    start = (page - 1) * results_per_page
+                    end = start + results_per_page
+                    paginated_results = search_results[start:end]
 
-                # Paginate results
-                start = (page - 1) * results_per_page
-                end = start + results_per_page
-                paginated_results = search_results[start:end]
+                    for result in paginated_results:
+                        results.append({
+                            "title": result["title"],
+                            "url": result["url"],
+                            "content": result.highlights("content") or result["content"][:200] + "..."
+                        })
 
-                for result in paginated_results:
-                    results.append({
-                        "title": result["title"],
-                        "url": result["url"],
-                        "content": result.highlights("content") or "No highlight available"
-                    })
-
-                # Calculate the total number of pages
-                total_pages = (total_results // results_per_page) + (1 if total_results % results_per_page else 0)
+                    # Calculate the total number of pages
+                    total_pages = (total_results // results_per_page) + (1 if total_results % results_per_page else 0)
 
         except Exception as e:
             print(f"Error during search: {e}")
 
-    return render_template("results.html", query=query, results=results, no_results=no_results, page=page, total_pages=total_pages)
+    return render_template(
+        "results.html", 
+        query=query, 
+        results=results, 
+        no_results=no_results, 
+        page=page, 
+        total_pages=total_pages
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
